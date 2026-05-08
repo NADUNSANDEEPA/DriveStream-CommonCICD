@@ -1,0 +1,121 @@
+name: 📢 Common Teams Notification
+
+on:
+  workflow_call:
+    inputs:
+      status:
+        required: true
+        type: string
+      actor:
+        required: true
+        type: string
+      branch:
+        required: true
+        type: string
+      workflow_name:
+        required: true
+        type: string
+      run_number:
+        required: true
+        type: string
+      repository:
+        required: true
+        type: string
+      commit_sha:
+        required: true
+        type: string
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # ─────────────────────────────
+      # METADATA
+      # ─────────────────────────────
+      - name: Prepare Metadata
+        id: meta
+        run: |
+          echo "short_sha=$(echo '${{ inputs.commit_sha }}' | cut -c1-7)" >> $GITHUB_OUTPUT
+          echo "time=$(TZ='Asia/Colombo' date '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_OUTPUT
+          echo "workflow_url=https://github.com/${{ inputs.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_OUTPUT
+          echo "commit_url=https://github.com/${{ inputs.repository }}/commit/${{ inputs.commit_sha }}" >> $GITHUB_OUTPUT
+
+      # ─────────────────────────────
+      # STATUS LOGIC
+      # ─────────────────────────────
+      - name: Set Status
+        id: status
+        run: |
+          if [[ "${{ inputs.status }}" == "success" ]]; then
+            echo "ICON=✅" >> $GITHUB_OUTPUT
+            echo "COLOR=00FF00" >> $GITHUB_OUTPUT
+            echo "TITLE=Deployment Successful" >> $GITHUB_OUTPUT
+            echo "MESSAGE=Pipeline completed successfully" >> $GITHUB_OUTPUT
+          else
+            echo "ICON=❌" >> $GITHUB_OUTPUT
+            echo "COLOR=FF0000" >> $GITHUB_OUTPUT
+            echo "TITLE=Deployment Failed" >> $GITHUB_OUTPUT
+            echo "MESSAGE=Pipeline failed. Check logs." >> $GITHUB_OUTPUT
+          fi
+
+      # ─────────────────────────────
+      # SEND TEAMS MESSAGE
+      # ─────────────────────────────
+      - name: Send Teams Notification
+        env:
+          TEAMS_WEBHOOK: ${{ secrets.TEAMS_WEBHOOK_URL }}
+        run: |
+          curl -H "Content-Type: application/json" \
+          -d "{
+            \"@type\": \"MessageCard\",
+            \"@context\": \"https://schema.org/extensions\",
+            \"themeColor\": \"${{ steps.status.outputs.COLOR }}\",
+            \"summary\": \"CI/CD Pipeline Notification\",
+
+            \"sections\": [
+              {
+                \"activityTitle\": \"${{ steps.status.outputs.ICON }} ${{ steps.status.outputs.TITLE }}\",
+                \"activitySubtitle\": \"${{ inputs.workflow_name }} Notification\",
+
+                \"text\": \"**Status:** ${{ inputs.status }}\n\n${{ steps.status.outputs.MESSAGE }}\",
+
+                \"facts\": [
+                  { \"name\": \"📦 Repo\", \"value\": \"${{ inputs.repository }}\" },
+                  { \"name\": \"🌿 Branch\", \"value\": \"${{ inputs.branch }}\" },
+                  { \"name\": \"👤 Actor\", \"value\": \"${{ inputs.actor }}\" },
+                  { \"name\": \"🔄 Workflow\", \"value\": \"${{ inputs.workflow_name }}\" },
+                  { \"name\": \"🆔 Run\", \"value\": \"#${{ inputs.run_number }}\" },
+                  { \"name\": \"🔖 Commit\", \"value\": \"${{ steps.meta.outputs.short_sha }}\" },
+                  { \"name\": \"⏰ Time (SL)\", \"value\": \"${{ steps.meta.outputs.time }}\" }
+                ],
+
+                \"markdown\": true
+              }
+            ],
+
+            \"potentialAction\": [
+              {
+                \"@type\": \"OpenUri\",
+                \"name\": \"🔍 Workflow\",
+                \"targets\": [
+                  {
+                    \"os\": \"default\",
+                    \"uri\": \"${{ steps.meta.outputs.workflow_url }}\"
+                  }
+                ]
+              },
+              {
+                \"@type\": \"OpenUri\",
+                \"name\": \"📝 Commit\",
+                \"targets\": [
+                  {
+                    \"os\": \"default\",
+                    \"uri\": \"${{ steps.meta.outputs.commit_url }}\"
+                  }
+                ]
+              }
+            ]
+          }" \
+          $TEAMS_WEBHOOK
