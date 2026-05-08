@@ -25,6 +25,10 @@ on:
         required: true
         type: string
 
+    secrets:
+      TEAMS_WEBHOOK_URL:
+        required: true
+
 jobs:
   notify:
     runs-on: ubuntu-latest
@@ -72,12 +76,12 @@ jobs:
             \"@type\": \"MessageCard\",
             \"@context\": \"https://schema.org/extensions\",
             \"themeColor\": \"${{ steps.status.outputs.COLOR }}\",
-            \"summary\": \"CI/CD Pipeline Notification\",
+            \"summary\": \"DriveStream CI/CD Notification\",
 
             \"sections\": [
               {
-                \"activityTitle\": \"${{ steps.status.outputs.ICON }} ${{ steps.status.outputs.TITLE }}\",
-                \"activitySubtitle\": \"${{ inputs.workflow_name }} Notification\",
+                \"activityTitle\": \"🚀 DriveStream Deployment Dashboard\",
+                \"activitySubtitle\": \"${{ inputs.workflow_name }}\",
 
                 \"text\": \"**Status:** ${{ inputs.status }}\n\n${{ steps.status.outputs.MESSAGE }}\",
 
@@ -88,7 +92,7 @@ jobs:
                   { \"name\": \"🔄 Workflow\", \"value\": \"${{ inputs.workflow_name }}\" },
                   { \"name\": \"🆔 Run\", \"value\": \"#${{ inputs.run_number }}\" },
                   { \"name\": \"🔖 Commit\", \"value\": \"${{ steps.meta.outputs.short_sha }}\" },
-                  { \"name\": \"⏰ Time (SL)\", \"value\": \"${{ steps.meta.outputs.time }}\" }
+                  { \"name\": \"⏰ Time\", \"value\": \"${{ steps.meta.outputs.time }}\" }
                 ],
 
                 \"markdown\": true
